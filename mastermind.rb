@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require './display'
+
 # let the computer work off of the best guess, and eventually don't let it use the same attempts over again
 # AI a little smarter, but still doesnt work how i want it to
 # I want it to read the output and make a guess based off of previous attempts
@@ -7,77 +9,65 @@
 # need to get memory working so it doesn't make the same attempts over and over
 
 # TOP LEVEL COMMENT
-# when do you use a module vs a class?
 class Guess
+  include Display
+
   def initialize
-    @guess = []
-    @round = 1
-    @solved = false
-    @code = []
-    @output = []
-    @best_attempt = []
-    @best_output = []
-    # @attempts = []
+    @previous_guesses = []
+    @best_guess = []
+    @highest_points = 0
     state_rules
-    check_guess
+    start_game
   end
 
-  def state_rules
-    puts 'Guess the code and in the right order. The numbers will be  1-4'
-    puts "'!' means a number is in the right place, don't change it"
-    puts "'?' means a number is not in the right place, change the location"
-  end
-
-  def check_guess
+  def start_game
     @code = make_code
-    12.times do
+    @round = 12
+    while @round.positive?
       @guess = input_guess
-      # if @round == 1
-
-      #   @attempts.push([@guess])
-      # else
-      #   check_unique_guess
-      # end
-
-      # puts "Attempts: #{@attempts}"
+      @output = make_output
+      update_best_guess
       display_info
-      @round += 1
+      @round -= 1
       break if solved?
     end
     finish_game
   end
 
-  def display_info
-    puts "Guess: #{@guess}"
-    @output = make_output
-    puts "Output: #{@output}"
-    best_guess
-    # puts "\nbest output: #{@best_output}"
-    puts "\nBest try: #{@best_attempt}\n"
+  # this doesn't save the best guess.
+  # let the computer work off of the best guess, and eventually don't let it use the same attempts over again
+
+  # update best_attempt
+  def update_best_guess
+    if @previous_guesses.empty?
+      @best_guess = @guess
+      @best_output = @output
+      @previous_guesses.push(@guess)
+      return
+    end
+
+    @previous_guesses.push(@guess)
+    points = calculate_points
+    compare_attempts(points)
   end
 
-  # def check_unique_guess
-  #   # @guess = input_guess
-  #   @attempts.each do |arr|
-  #     @guess = input_guess until @guess != arr
-  #   end
-  #   @attempts.push([@guess])
-  # end
-  # display info function
-
-  def best_guess
-    # let the computer work off of the best guess, and eventually don't let it use the same attempts over again
-    if @round == 1
-      @best_attempt = @guess
-      @best_output = @output
-    elsif @output.count('!') >= @best_output.count('!')
-      @best_attempt = @guess
-      @best_output = @output
-      if @output.count('?') > @best_output.count('?')
-        @best_attempt = @guess
-        @best_output = @output
-      end
+  def calculate_points
+    points = 0
+    unless @output.empty?
+      # '!' will be worth 2 points
+      points += @output.count('!') * 2
+      # '?' will be worth 1 point
+      points += @output.count('?')
     end
+    points
+  end
+
+  def compare_attempts(current)
+    return unless current > @highest_points
+
+    @best_guess = @guess
+    @best_output = @output
+    @highest_points = current
   end
 
   def make_output
@@ -86,7 +76,6 @@ class Guess
       @output.push('!') if @code[index] == @guess[index]
     end
     @guess.each_index do |index|
-      # exclude cases where they're an exact match
       next unless @guess[index] != @code[index]
 
       @output.push('?') if @guess.any? @code[index]
@@ -105,11 +94,11 @@ end
 # computer makes the code
 class Computer < Guess
   def make_code
-    Array.new(4) { |_i| rand(1..4).to_s }
+    Array.new(4) { rand(1..4).to_s }
   end
 
   def input_guess
-    puts "Guess the computer's code. Round: #{@round}"
+    puts "Guess the computer's code. You have #{@round} more guesses: "
     gets.chomp.chars
   end
 
@@ -127,7 +116,6 @@ end
 
 # player makes the code
 class Player < Guess
-  # need to put in conditions so it's the right input
   def make_code
     puts 'Enter a four digit code for the computer to guess'
     code = gets.chomp.chars
@@ -139,43 +127,59 @@ class Player < Guess
   end
 
   def input_guess
-    puts "The computer is guessing your code. Round: #{@round}"
-    # can i put a delay here so it doesn't guess instantly?
-    return Array.new(4) { rand(1..4).to_s } if @round == 1
+    puts "The computer is guessing your code. It has #{@round} more guesses: "
+    # delay the guess
+    # sleep 1
+    return Array.new(4) { rand(1..4).to_s } if @previous_guesses.empty?
 
-    if @output == []
-      analyze_output
-    else
-      check_number_guess = misplaced_numbers
-      right_numbers(check_number_guess)
-    end
+    computer_guess
   end
 
-  def analyze_output
+  def computer_guess
+    return empty_output if @output == []
+
+    # next_guess = []
+
+    misplaced_numbers = check_number_placement
+    next_guess = right_numbers(misplaced_numbers)
+
+    # next_guess = computer_guess while @previous_guesses.include?(next_guess)
+  end
+
+  # don't include the numbers that don't produce any output
+  def empty_output
     new_guess = Array.new(4) { rand(1..4).to_s }
     new_guess.each_with_index do |num, index|
       new_guess[index] = rand(1..4).to_s if @guess.include? num
     end
+    new_guess
   end
 
-  def misplaced_numbers
+  def check_number_placement
     next_guess = Array.new(4) { rand(1..4).to_s }
+    return next_guess if @best_output.nil?
+
+    next_guess = @best_guess
+
     if @best_output.include?('?')
       x = @best_output.count('?')
-      keep = @best_attempt.sample(x)
+      keep = @best_guess.sample(x)
       keep.each { |keeper| next_guess[rand(next_guess.length)] = keeper }
     end
 
-    next_guess
+    next_guess = check_number_placement while @previous_guesses.include?(next_guess)
+    # next_guess
   end
 
   def right_numbers(next_guess)
+    # return next_guess if @best_output.nil?
+
     if @best_output.include?('!')
       x = @best_output.count('!')
-      keep = @best_attempt.sample(x)
+      keep = @best_guess.sample(x)
       i = 0
       x.times do
-        index = @best_attempt.index(keep[i])
+        index = @best_guess.index(keep[i])
         next_guess[index] = keep[i]
         i += 1
       end
@@ -194,28 +198,3 @@ class Player < Guess
     puts @code.to_s
   end
 end
-
-def play_game
-  flag = true
-  while flag
-    puts 'Welcome to Mastermind'
-    puts 'Would you like to be the creator of the secret code? y/n'
-    input = gets.chomp.downcase
-    input == 'y' ? Player.new : Computer.new
-    flag = play_again?
-  end
-end
-
-def play_again?
-  puts 'Would you like to play again? y/n'
-  again = gets.chomp.downcase
-  case again
-  when 'y'
-    true
-  else
-    false
-  end
-end
-
-# start the game
-play_game
