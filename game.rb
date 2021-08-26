@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-require './mastermind'
+require './guess'
+require './computer'
+require './player'
 
 def play_mastermind
   flag = true
