@@ -13,7 +13,6 @@ module Display
   def display_info
     puts "Guess: #{@guess}".colorize(:red)
     puts "Output: #{@output}".colorize(:light_blue)
-    puts "Previous guesses: #{@previous_guesses}"
     puts "\nBest try: #{@best_guess}\n".colorize(:yellow)
   end
 end

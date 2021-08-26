@@ -2,13 +2,7 @@
 
 require './display'
 
-# let the computer work off of the best guess, and eventually don't let it use the same attempts over again
-# AI a little smarter, but still doesnt work how i want it to
-# I want it to read the output and make a guess based off of previous attempts
-
-# need to get memory working so it doesn't make the same attempts over and over
-
-# TOP LEVEL COMMENT
+# guess class makes the code, tracks guesses, and starts game
 class Guess
   include Display
 
@@ -16,6 +10,7 @@ class Guess
     @previous_guesses = []
     @best_guess = []
     @highest_points = 0
+    @no_output_numbers = []
     state_rules
     start_game
   end
@@ -34,14 +29,12 @@ class Guess
     finish_game
   end
 
-  # this doesn't save the best guess.
-  # let the computer work off of the best guess, and eventually don't let it use the same attempts over again
-
-  # update best_attempt
+  # update best_attempt and previous_guesses
   def update_best_guess
     if @previous_guesses.empty?
       @best_guess = @guess
       @best_output = @output
+
       @previous_guesses.push(@guess)
       return
     end
@@ -54,8 +47,8 @@ class Guess
   def calculate_points
     points = 0
     unless @output.empty?
-      # '!' will be worth 2 points
-      points += @output.count('!') * 2
+      # '!' will be worth 3 points
+      points += @output.count('!') * 3
       # '?' will be worth 1 point
       points += @output.count('?')
     end
@@ -78,7 +71,7 @@ class Guess
     @guess.each_index do |index|
       next unless @guess[index] != @code[index]
 
-      @output.push('?') if @guess.any? @code[index]
+      @output.push('?') if @guess.include? @code[index]
     end
     @output
   end
@@ -87,6 +80,15 @@ class Guess
     return unless @code == @guess
 
     @solved = true
+    true
+  end
+
+  def valid_input?(guess)
+    return false if guess.length < 4
+
+    guess.map do |char|
+      return false unless char.to_i.between?(1, 4)
+    end
     true
   end
 end
@@ -98,8 +100,15 @@ class Computer < Guess
   end
 
   def input_guess
-    puts "Guess the computer's code. You have #{@round} more guesses: "
-    gets.chomp.chars
+    puts "\nGuess the computer's code. You have #{@round} more guesses: "
+    guess = gets.chomp.chars
+    valid_input?(guess) ? guess : try_guess_again
+  end
+
+  def try_guess_again
+    puts "\nInvalid guess"
+    state_rules
+    input_guess
   end
 
   def finish_game
@@ -119,61 +128,102 @@ class Player < Guess
   def make_code
     puts 'Enter a four digit code for the computer to guess'
     code = gets.chomp.chars
-    while code.length != 4
-      puts 'Please enter a 4 digit code'
-      code = gets.chomp.chars
-    end
-    code
+    valid_input?(code) ? code : make_code
   end
 
   def input_guess
     puts "The computer is guessing your code. It has #{@round} more guesses: "
-    # delay the guess
-    # sleep 1
+    sleep 1
     return Array.new(4) { rand(1..4).to_s } if @previous_guesses.empty?
 
-    computer_guess
+    guess = computer_guess
+
+    @previous_guesses.include?(guess) ? try_guess_again : guess
+  end
+
+  def try_guess_again
+    puts 'The computer has already made that guess'
+    puts 'Recalculating....'
+    input_guess
   end
 
   def computer_guess
-    return empty_output if @output == []
+    if @output == []
+      @no_output_numbers = @no_output_numbers.push(@guess).flatten.uniq!
+      return empty_output
+    end
 
-    # next_guess = []
-
+    puts "no output numbers #{@no_output_numbers}"
     misplaced_numbers = check_number_placement
-    next_guess = right_numbers(misplaced_numbers)
-
-    # next_guess = computer_guess while @previous_guesses.include?(next_guess)
+    guess = right_numbers(misplaced_numbers)
+    empty_output(guess)
   end
 
   # don't include the numbers that don't produce any output
-  def empty_output
-    new_guess = Array.new(4) { rand(1..4).to_s }
-    new_guess.each_with_index do |num, index|
-      new_guess[index] = rand(1..4).to_s if @guess.include? num
+  def empty_output(new_guess = Array.new(4) { rand(1..4).to_s })
+    return new_guess if @no_output_numbers.empty?
+
+    options = %w[1 2 3 4]
+
+    leftovers = find_options(options)
+    replace_num(new_guess, leftovers)
+  end
+
+  def find_options(arr)
+    @no_output_numbers.map do |num|
+      arr.delete_if { |option| option == num }
     end
+    puts "options #{arr}"
+    arr
+  end
+
+  # find all the no_output nums and replace it with a different one
+  def replace_num(guess, options)
+    puts "new_guess before exclusions #{guess}"
+    new_guess = []
+
+    # p array.map { |x| x == 4 ? 'Z' : x }
+    guess.each_with_index do |num, index|
+      # might have to put a condition if it's nil/empty?
+      if @no_output_numbers[index] == num
+        new_guess.push(options[rand(options.length)])
+      else
+        new_guess.push(num)
+      end
+      # guess.map do |x|
+      #   if x == num
+      #     new_guess.push(options[rand(options.length)])
+      #   else
+      #     new_guess.push(x)
+      #   end
+
+      # if new_guess.include?(num)
+    end
+
+    # new_guess.each_with_index do |num, index|
+    #   if
+    #   var = options[rand(options.length)]
+    #   puts "var from replace_num #{var}"
+    #   new_guess[index] = num
+    # end
+
+    puts "new_guess replace_num #{new_guess}"
     new_guess
   end
 
   def check_number_placement
     next_guess = Array.new(4) { rand(1..4).to_s }
-    return next_guess if @best_output.nil?
-
-    next_guess = @best_guess
+    return next_guess if @best_output.empty?
 
     if @best_output.include?('?')
       x = @best_output.count('?')
       keep = @best_guess.sample(x)
       keep.each { |keeper| next_guess[rand(next_guess.length)] = keeper }
     end
-
-    next_guess = check_number_placement while @previous_guesses.include?(next_guess)
-    # next_guess
+    next_guess
   end
 
   def right_numbers(next_guess)
-    # return next_guess if @best_output.nil?
-
     if @best_output.include?('!')
       x = @best_output.count('!')
       keep = @best_guess.sample(x)
