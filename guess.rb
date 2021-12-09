@@ -9,14 +9,14 @@ class Guess
     @best_guess = []
     @highest_points = 0
     @no_output_numbers = []
+    @code = make_code
+    @round = 12
+    state_rules
     start_game
   end
 
   # game logic
   def start_game
-    state_rules
-    @code = make_code
-    @round = 12
     while @round.positive?
       @guess = input_guess
       @output = make_output
@@ -65,29 +65,79 @@ class Guess
 
   # generate the clues that coincide with guesses
   def make_output
-    @output = []
+    # @output = []
     @output = correct_location
+    @output.push(correct_number)
+    # p @output.flatten
+    @output.flatten
   end
 
-  # check correct location first, add '!'
+  # make sure ! is added for each num in the right spot
   def correct_location
-    options = %w[1 2 3 4]
+    # options = %w[1 2 3 4]
+    output = []
     @code.each_with_index do |num, index|
-      if num == @guess[index]
-        @output.push('!')
-      elsif num != @guess[index]
-        check_correct_number(@guess[index], options) ? @output.push('?') : next
-        options.delete_if { |option| option == num }
-      end
+      output.push('!') if num == @guess[index]
     end
-    @output
+    # p "correct_location #{output}"
+    output
   end
 
-  def check_correct_number(num, options_arr)
-    return true if options_arr.include?(num) && @code.include?(num)
+  def correct_number
+    saved_numbers = save_list
+    # delete the number after it's been used once
+    output = []
+    index = 0
+    @code.length.times do
+      if @guess.include?(@code[index]) && !saved_numbers.include?(@code[index])
+        saved_numbers.push(@code[index])
+        output.push('?')
+      end
+      # delete one of the saved numbers. if there are two threes get rid of one of them
+      # saved_numbers = remove_saved_number(saved_numbers, @code[index])
+      # delete the first instance of that number
 
-    false
+      index += 1
+    end
+    # p "correct_location #{output}"
+    output
   end
+
+  # remove the first instance of num in the array
+  # def remove_saved_number(arr, num)
+  #   arr.each do |item|
+  #     next unless item == num
+
+  #     p "remove_saved_number #{arr}"
+  #     arr.delete(item)
+  #     p "remove_saved_number #{arr}"
+  #     return arr
+  #   end
+  #   arr
+  # end
+
+  def save_list
+    saved = []
+    @code.each_with_index do |num, index|
+      saved.push(num) if num == @guess[index]
+    end
+    saved
+  end
+
+  # def check_correct_number(num, options_arr)
+  #   return true if options_arr.include?(num) && @code.include?(num)
+
+  #   false
+  # end
+
+  # def check_number_appearance
+  #   num = @guess[index]
+  #   i = 0
+  #   @guess.map { |item| i += 1 if num == item }
+  #   i.times do
+  #     @output.push('?')
+  #   end
+  # end
 
   def solved?
     return unless @code == @guess

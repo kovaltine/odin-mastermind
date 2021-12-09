@@ -7,6 +7,7 @@ require './player'
 def play_mastermind
   flag = true
   while flag
+    system('clear')
     puts 'Welcome to Mastermind'
     puts 'Would you like to be the creator of the secret code? y/n'
     input = gets.chomp.downcase
