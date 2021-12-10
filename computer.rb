@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require './guess'
+require './display'
 
 # computer makes the code
 class Computer < Guess
@@ -12,14 +13,7 @@ class Computer < Guess
   def input_guess
     puts "\nGuess the computer's code. You have #{@round} more guesses: "
     guess = gets.chomp.chars
-    valid_input?(guess) ? guess : try_guess_again
-  end
-
-  # if user puts an invalid code they can try again
-  def try_guess_again
-    puts "\nInvalid guess"
-    state_rules
-    input_guess
+    valid_input?(guess) ? guess : player_guess_again
   end
 
   # finish_game is different depending on who the solver is
@@ -32,5 +26,11 @@ class Computer < Guess
       puts "Sorry, #{creator} won!"
     end
     puts @code.to_s
+  end
+
+  def player_guess_again
+    puts "\nInvalid guess"
+    state_rules
+    input_guess
   end
 end

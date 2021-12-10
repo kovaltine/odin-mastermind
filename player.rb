@@ -1,35 +1,44 @@
 # frozen_string_literal: true
 
 require './guess'
+require './display'
 
 # player makes the code
 class Player < Guess
+  def enter_code
+    puts 'Enter a four digit code for the computer to guess'
+  end
+
   # player makes the code via valid numbers
   def make_code
-    puts 'Enter a four digit code for the computer to guess'
+    enter_code
     code = gets.chomp.chars
     valid_input?(code) ? code : make_code
   end
 
+  # MAKE SURE CODE IS VALID
+
+  def valid_input?(guess)
+    return false if guess.length < 4
+
+    guess.map do |char|
+      return false unless char.to_i.between?(1, 4)
+    end
+    true
+  end
+
+  # COMPUTER GUESS
+
   # computer's guess cannot be the same as previous ones
   def input_guess
-    puts "The computer is guessing your code. It has #{@round} more guesses: "
-    sleep 1
+    comp_guess_code
     return Array.new(4) { rand(1..4).to_s } if @previous_guesses.empty?
 
     guess = computer_guess
-
-    @previous_guesses.include?(guess) ? try_guess_again : guess
+    @previous_guesses.include?(guess) ? comp_guess_again : guess
   end
 
-  # lets the user know in case there is a delay in console output
-  def try_guess_again
-    puts "\nThe computer has already made that guess"
-    puts 'Recalculating....'
-    input_guess
-  end
-
-  # computer's guess is based on output
+  # computer's next guess is based on output
   def computer_guess
     if @output == []
       @no_output_numbers = @no_output_numbers.push(@guess).flatten.uniq!
@@ -41,6 +50,8 @@ class Player < Guess
     empty_output(guess)
   end
 
+  # INTERPRETING OUTPUT
+
   # don't include the numbers that don't produce any output
   def empty_output(new_guess = Array.new(4) { rand(1..4).to_s })
     return new_guess if @no_output_numbers.empty?
@@ -49,28 +60,6 @@ class Player < Guess
 
     leftovers = find_options(options)
     replace_num(new_guess, leftovers)
-  end
-
-  # remove numbers from options arr if they don't generate any output
-  def find_options(arr)
-    @no_output_numbers.map do |num|
-      arr.delete_if { |option| option == num }
-    end
-    arr
-  end
-
-  # find all the no_output nums and replace it with one from options arr
-  def replace_num(guess, options)
-    new_guess = []
-
-    guess.each_with_index do |num, _index|
-      if @no_output_numbers.include?(num)
-        new_guess.push(options[rand(options.length)])
-      else
-        new_guess.push(num)
-      end
-    end
-    new_guess
   end
 
   # a '?' means there is number misplaced
@@ -101,6 +90,30 @@ class Player < Guess
     next_guess
   end
 
+  # GUESSING NUMBERS BASED ON OUTPUT
+
+  # remove numbers from options arr if they don't generate any output
+  def find_options(arr)
+    @no_output_numbers.map do |num|
+      arr.delete_if { |option| option == num }
+    end
+    arr
+  end
+
+  # find all the no_output nums and replace it with one from options arr
+  def replace_num(guess, options)
+    new_guess = []
+
+    guess.each_with_index do |num, _index|
+      if @no_output_numbers.include?(num)
+        new_guess.push(options[rand(options.length)])
+      else
+        new_guess.push(num)
+      end
+    end
+    new_guess
+  end
+
   # end message
   def finish_game
     creator = 'Player'
@@ -111,5 +124,11 @@ class Player < Guess
       puts "Congratulations #{creator}, you won!"
     end
     puts @code.to_s
+  end
+
+  def comp_guess_again
+    puts "\nThe computer has already made that guess"
+    puts 'Recalculating....'
+    input_guess
   end
 end
